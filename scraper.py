@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import time
 import pandas as pd
 import re
+import database
 
 def fetch_properties(url):
     # We define "Headers" so the website thinks we are a real browser, not a bot.
@@ -91,11 +92,6 @@ def clean_data(raw_properties_list):
     df['bathrooms'] = df['details_raw'].str.extract(r'(\d+)\s*baño').astype('Int64')
     df['square_meters'] = df['details_raw'].str.extract(r'(\d+)\s*m').astype('Int64')
 
-    print("CLEAN DATA (Before vs After)")
-    # We select specific columns to show the transformation
-    columns_to_show = ['price_raw', 'price_euros', 'bedrooms', 'bathrooms', 'square_meters']
-    print(df[columns_to_show].head(5))
-
     return df
 
 if __name__ == "__main__":
@@ -134,4 +130,8 @@ if __name__ == "__main__":
 
     if len(all_properties) > 0:
         cleaned_df = clean_data(all_properties)
+
+        if cleaned_df is not None:
+            database.save_properties_to_db(cleaned_df)
+            print("FULL PIPELINE EXECUTED SUCCESSFULLY")
     
