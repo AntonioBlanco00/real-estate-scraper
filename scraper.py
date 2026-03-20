@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+import pandas as pd
+import re
 
 def fetch_properties(url):
     # We define "Headers" so the website thinks we are a real browser, not a bot.
@@ -29,13 +31,15 @@ def fetch_properties(url):
 
 def parse_properties(soup):
     if not soup:
-        return 0
+        return []
     
     property_cards = soup.find_all('div', class_='ad-preview')
     if len(property_cards) == 0:
-        return 0
+        return []
    
     print(f"Found {len(property_cards)} properties on this page.\n")
+
+    properties_list = []
 
     # Loop through each card and extract basic info
     for card in property_cards:
@@ -51,21 +55,54 @@ def parse_properties(soup):
 
             char_text = " | ".join([char.text.strip() for char in characteristics])
             
-            print(f"ID: {property_id}")
-            print(f"Title: {title}")
-            print(f"Price: {price_text}")
-            print(f"Details: {char_text}")
-            print(f"Link: {link}")
-            print("-" * 40)
+            prop_data = {
+                "property_id": property_id,
+                "title": title,
+                "price_raw": price_text,
+                "details_raw": char_text,
+                "link": link
+            }
+
+            properties_list.append(prop_data)
             
         except AttributeError:
             continue
 
-    return len(property_cards)
+    return properties_list
+
+def clean_data(raw_properties_list):
+    df = pd.DataFrame(raw_properties_list)
+
+    if df .empty:
+        return None
+    
+    print("Cleaning data with Pandas adn Regex...")
+
+    # Price cleaning
+    df['price_euros'] = (
+        df['price_raw']
+        .str.replace('.', '', regex=False)
+        .str.extract(r'(\d+)')
+        .astype('Int64')
+    )
+
+    # Extract details
+    df['bedrooms'] = df['details_raw'].str.extract(r'(\d+)\s*hab').astype('Int64')
+    df['bathrooms'] = df['details_raw'].str.extract(r'(\d+)\s*baño').astype('Int64')
+    df['square_meters'] = df['details_raw'].str.extract(r'(\d+)\s*m').astype('Int64')
+
+    print("CLEAN DATA (Before vs After)")
+    # We select specific columns to show the transformation
+    columns_to_show = ['price_raw', 'price_euros', 'bedrooms', 'bathrooms', 'square_meters']
+    print(df[columns_to_show].head(5))
+
+    return df
 
 if __name__ == "__main__":
     BASE_URL = "https://www.pisos.com/alquiler/pisos-caceres_capital/"
     current_page =  1
+
+    all_properties = []
 
     # Initialize the pagination loop to crawl through all available pages
     while True:
@@ -79,15 +116,22 @@ if __name__ == "__main__":
 
         # Execute the extraction pipeline for the current page
         html_soup = fetch_properties(url_to_scrape)
-        items_found = parse_properties(html_soup)
+        page_properties = parse_properties(html_soup)
 
-        if items_found == 0:
+        if len(page_properties) == 0:
             print("No more properties found.")
             break
+        
+        all_properties.extend(page_properties)
 
         # Polite delay to prevent rate-limiting or IP bans from the server
         print("Waiting 2 seconds before the next page...")
         time.sleep(2)
 
         current_page += 1
+
+    print(f"Total properties extracted: {len(all_properties)}")
+
+    if len(all_properties) > 0:
+        cleaned_df = clean_data(all_properties)
     
