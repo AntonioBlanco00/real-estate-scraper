@@ -18,6 +18,9 @@ def run_step(script_name, step_description):
 if __name__ == "__main__":
     print("\n REAL ESTATE ETL & AI PIPELINE ORCHESTRATOR")
     print("Starting automated execution of all phases...\n")
+
+    # Phase 0: Database Setup/Verification
+    run_step("database.py", "Initialize and Verify Database Schema")
     
     # Phase 1: Web Scraping & Database UPSERT
     run_step("scraper.py", "Core Data Extraction and Database Load (SQLite)")

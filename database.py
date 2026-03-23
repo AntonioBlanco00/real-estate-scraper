@@ -6,7 +6,7 @@ def create_db():
     conn = sqlite3.connect('properties.db')
     cursor = conn.cursor()
 
-    query = """
+    query_main = """
     CREATE TABLE IF NOT EXISTS rental_properties (
         property_id TEXT PRIMARY KEY,
         url TEXT,
@@ -22,12 +22,22 @@ def create_db():
         last_update DATE
     )
     """
+    cursor.execute(query_main)
 
-    cursor.execute(query)
+    query_history = """
+    CREATE TABLE IF NOT EXISTS price_history (
+        property_id TEXT,
+        price_euros INTEGER,
+        record_date DATE,
+        UNIQUE(property_id, record_date)
+    )
+    """
+    cursor.execute(query_history)
+
     conn.commit()
-
     conn.close()
-    print("Database 'properties.db' and table 'rental_properties' successfully created or verified.")
+    print("Database verified: 'rental_properties' and 'price_history' tables are ready.")
+
 
 def save_properties_to_db(df):
     """
@@ -55,24 +65,34 @@ def save_properties_to_db(df):
         last_update = excluded.last_update;
     """
 
-    print("Saving data to SQLite database...")
+    history_query = """
+    INSERT OR IGNORE INTO price_history (property_id, price_euros, record_date)
+    VALUES (?, ?, ?)
+    """
+
+    print("Saving data and historical prices to SQLite database...")
 
     # Iterate through each row in the DataFrame
     for index, row in df.iterrows():
-        p_id = row['property_id']
-        url = row['link']
-        title = row['title']
-        price = None if pd.isna(row['price_euros']) else int(row['price_euros'])
-        beds = None if pd.isna(row['bedrooms']) else int(row['bedrooms'])
-        baths = None if pd.isna(row['bathrooms']) else int(row['bathrooms'])
-        sqm = None if pd.isna(row['square_meters']) else int(row['square_meters'])
+            p_id = row['property_id']
+            url = row['link']
+            title = row['title']
+            price = None if pd.isna(row['price_euros']) else int(row['price_euros'])
+            beds = None if pd.isna(row['bedrooms']) else int(row['bedrooms'])
+            baths = None if pd.isna(row['bathrooms']) else int(row['bathrooms'])
+            sqm = None if pd.isna(row['square_meters']) else int(row['square_meters'])
 
-        cursor.execute(upsert_query, (p_id, url, title, price, beds, baths, sqm, today, today))
+            # 1. Actualizamos la tabla principal
+            cursor.execute(upsert_query, (p_id, url, title, price, beds, baths, sqm, today, today))
+            
+            # 2. Guardamos la foto diaria en el histórico (solo si hay precio)
+            if price is not None:
+                cursor.execute(history_query, (p_id, price, today))
 
     conn.commit()
     conn.close()
 
-    print(f"Successfully saved/updated {len(df)} properties in 'properties.db'.")
+    print(f"Successfully saved/updated {len(df)} properties and recorded their daily history.")
 
 
 if __name__ == "__main__":
