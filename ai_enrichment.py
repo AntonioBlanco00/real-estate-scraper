@@ -128,7 +128,7 @@ if __name__ == "__main__":
         exit()
         
     total = len(pending_properties)
-    print(f"🔍 Found {total} properties pending enrichment.\n")
+    print(f"Found {total} properties pending enrichment.\n")
 
     for index, prop in enumerate(pending_properties, start=1):
         p_id = prop['property_id']
