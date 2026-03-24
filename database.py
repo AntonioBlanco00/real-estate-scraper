@@ -57,11 +57,12 @@ def save_properties_to_db(df):
 
     upsert_query = """
     INSERT INTO rental_properties 
-    (property_id, url, title, price_euros, bedrooms, bathrooms, square_meters, discovery_date, last_update)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (property_id, url, title, price_euros, bedrooms, bathrooms, square_meters, neighborhood_zone, discovery_date, last_update)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(property_id) DO UPDATE SET
         price_euros = excluded.price_euros,
         title = excluded.title,
+        neighborhood_zone = excluded.neighborhood_zone,
         last_update = excluded.last_update;
     """
 
@@ -81,11 +82,12 @@ def save_properties_to_db(df):
             beds = None if pd.isna(row['bedrooms']) else int(row['bedrooms'])
             baths = None if pd.isna(row['bathrooms']) else int(row['bathrooms'])
             sqm = None if pd.isna(row['square_meters']) else int(row['square_meters'])
+            zone = row.get('neighborhood_zone', None)
 
-            # 1. Actualizamos la tabla principal
-            cursor.execute(upsert_query, (p_id, url, title, price, beds, baths, sqm, today, today))
+            # 1. Update rental_properties Table
+            cursor.execute(upsert_query, (p_id, url, title, price, beds, baths, sqm, zone, today, today))
             
-            # 2. Guardamos la foto diaria en el histórico (solo si hay precio)
+            # 2. Update price_history Table
             if price is not None:
                 cursor.execute(history_query, (p_id, price, today))
 

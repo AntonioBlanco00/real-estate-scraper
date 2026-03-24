@@ -49,11 +49,16 @@ def parse_properties(soup):
             price_text = card.find('span', class_='ad-preview__price').text.strip()
             link_parcial = card.get('data-lnk-href')
             link = f"https://www.pisos.com{link_parcial}" if link_parcial else "No link"
-
             property_id = link_parcial.split('-')[-1].replace('/', '') if link_parcial else "No ID"
+            location_tag = card.find('p', class_='ad-preview__subtitle')
+            if location_tag:
+                raw_location = location_tag.text.strip()
+                neighborhood = raw_location.split('(')[0].strip() 
+            else:
+                neighborhood = None
+
 
             characteristics = card.find_all('p', class_='ad-preview__char')
-
             char_text = " | ".join([char.text.strip() for char in characteristics])
             
             prop_data = {
@@ -61,7 +66,8 @@ def parse_properties(soup):
                 "title": title,
                 "price_raw": price_text,
                 "details_raw": char_text,
-                "link": link
+                "link": link,
+                "neighborhood_zone": neighborhood
             }
 
             properties_list.append(prop_data)
